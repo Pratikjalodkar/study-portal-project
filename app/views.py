@@ -306,14 +306,20 @@ def wiki(request):
     if request.method == 'POST':
         form = DashboardForm(request.POST)
         text = request.POST['text']
-        search = wikipedia.page(text)
-        context = {
-            'form': form,
-            'title': search.title,
-            'link': search.url,
-            'details': search.summary,
-        }
-        return render(request, 'dashboard/wiki.html', context)
+        try:
+            search = wikipedia.page(text)
+            context = {
+                'form': form,
+                'title': search.title,
+                'link': search.url,
+                'details': search.summary,
+            }
+            return render(request, 'dashboard/wiki.html', context)
+        except Exception as e:
+            messages.error(request, f"Error fetching data: {e}")
+            return redirect('wiki')
+        
+
     else:
         form = DashboardForm()
     context = {
