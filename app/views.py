@@ -1,5 +1,5 @@
-from django.shortcuts import redirect
-from django.contrib.auth import authenticate, login
+from django.shortcuts import get_object_or_404, redirect
+from django.contrib.auth import authenticate, login, logout
 from django.shortcuts import render, redirect
 import requests
 import wikipedia
@@ -8,14 +8,16 @@ from .forms import *
 from django.contrib import messages
 from django.views import generic
 from youtubesearchpython import VideosSearch
+from django.contrib.auth.decorators import login_required
+
 
 # Create your views here.
 
-
+@login_required
 def home(request):
     return render(request, 'dashboard/home.html')
 
-
+@login_required
 def notes(request):
     if request.method == 'POST':
         form = NotesForm(request.POST)
@@ -31,18 +33,19 @@ def notes(request):
     print(notes)
     return render(request, 'dashboard/notes.html', {'notes': notes, 'form': form})
 
-
+@login_required
 def delete_note(request, pk=None):
     note = Notes.objects.get(pk=pk).delete()
     return redirect('notes')
 
-
+@login_required
 class NotesDetailView(generic.DetailView):
     model = Notes
     template_name = 'dashboard/notes_detail.html'
     # context_object_name = 'notes'
 
 
+@login_required
 def homework(request):
     if request.method == 'POST':
         form = HomeworkForm(request.POST)
@@ -83,6 +86,7 @@ def homework(request):
     return render(request, 'dashboard/homework.html', context)
 
 
+@login_required
 def update_homework(request, pk=None):
     homework = Homework.objects.get(id=pk)
     print(homework)
@@ -95,11 +99,13 @@ def update_homework(request, pk=None):
     return redirect('homework')
 
 
+@login_required
 def delete_homework(request, pk=None):
     homework = Homework.objects.get(pk=pk).delete()
     return redirect('homework')
 
 
+@login_required
 def youtube(request):
     if request.method == 'POST':
         form = DashboardForm(request.POST)
@@ -145,6 +151,7 @@ def youtube(request):
     return render(request, 'dashboard/youtube.html', context)
 
 
+@login_required
 def todo(request):
     if request.method == "POST":
         form = TodoForm(request.POST)
@@ -182,6 +189,7 @@ def todo(request):
     return render(request, 'dashboard/todo.html', context)
 
 
+@login_required
 def update_todo(request, pk=None):
     todo = Todo.objects.get(id=pk)
     if todo.is_finished == True:
@@ -193,11 +201,13 @@ def update_todo(request, pk=None):
     return redirect('todo')
 
 
+@login_required
 def delete_todo_item(request, pk=None):
     todo = Todo.objects.get(pk=pk).delete()
     return redirect('todo')
 
 
+@login_required
 def books(request):
     if request.method == 'POST':
         form = DashboardForm(request.POST)
@@ -234,6 +244,7 @@ def books(request):
     return render(request, 'dashboard/books.html', context)
 
 
+@login_required
 def dictionary(request):
     if request.method == 'POST':
         form = DashboardForm(request.POST)
@@ -290,6 +301,7 @@ def dictionary(request):
     return render(request, 'dashboard/dictionary.html',context)
 
 
+@login_required
 def wiki(request):
     if request.method == 'POST':
         form = DashboardForm(request.POST)
@@ -310,6 +322,7 @@ def wiki(request):
     return render(request, 'dashboard/wiki.html', context)
 
 
+@login_required
 def conversion(request):
     if request.method == 'POST':
         form = ConversionForm(request.POST)
@@ -387,6 +400,7 @@ def conversion(request):
         }
     return render(request, 'dashboard/conversion.html',context)
 
+
 def register(request):
     if request.method == 'POST':
         form = UserRegistrationForm(request.POST)
@@ -394,7 +408,7 @@ def register(request):
             form.save()
             username = form.cleaned_data.get('username')
             messages.success(request, f'Account Created for {username}')
-            # return redirect('login')
+            return redirect('login')
     else:
         form = UserRegistrationForm()
     context = {
@@ -404,27 +418,17 @@ def register(request):
 
 
 def loginView(request):
-    if request.method == 'POST':  # Fix the typo from 'POst' to 'POST'
-        form = UserLoginForm(request.POST)
+    if request.method == 'POST':
+        form = AuthenticationForm(request, data=request.POST)
         if form.is_valid():
-            # Get username and password from the form
-            username = form.cleaned_data.get('username')
-            password = form.cleaned_data.get('password')
-
-            # Authenticate user
-            user = authenticate(request, username=username, password=password)
-
-            if user is not None:
-                # Log in the user
-                login(request, user)
-                # Redirect to a dashboard or home page after successful login
-                # Replace 'home' with the name of your desired URL pattern
-                return redirect('home')
-            else:
-                form.add_error(None, 'Invalid username or password.')
-
+            # Log in the user
+            user = form.get_user()
+            login(request, user)
+            return redirect('home')  # Redirect to 'home' after login
+        else:
+            form.add_error(None, 'Invalid username or password.')
     else:
-        form = UserLoginForm()
+        form = AuthenticationForm()
 
     context = {
         'form': form
@@ -432,8 +436,30 @@ def loginView(request):
     return render(request, 'dashboard/login.html', context)
 
 
+@login_required
+def profile(request):
+    homework = Homework.objects.filter(user=request.user)
+    todo = Todo.objects.filter(user=request.user)
+    # notes = Notes.objects.filter(user=request.user)
+    if len(homework) == 0:
+        homework_done = True
+    else:
+        homework_done = False
+    if len(todo) == 0:
+        todo_done = True
+    else:
+        todo_done = False
+    context = {
+        'homeworks': homework,
+        'homework_done': homework_done,
+        'todos': todo,
+        'todo_done': todo_done,
+    }
+    return render(request, 'dashboard/profile.html', context)
 
 
-
+def logout_view(request):
+    logout(request)
+    return render(request, 'dashboard/logout.html')
 
 
